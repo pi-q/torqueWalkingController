@@ -23,8 +23,6 @@ It is suggested to install `codyco-modules`,`icub-gazebo`,`Gazebo-yarp-plugins` 
 
 - **doc**: guidelines on how to create/use Simulink models for control. [[README]](doc/README.md)
 
-- **legacy**: legacy version of all Simulink models in the repo, written in the lowest supported matlab version (R2014a). [[README]](legacy/README.md)
-
 - **library**: a collection of functions/scripts in common between different controllers. [[README]](master/library)
 
 - **utilities**: Simulink models for debugging. [[README]](utilities/README.md)
@@ -35,9 +33,6 @@ If all the required dependencies are installed, it is just necessary to clone th
 
 ### Mantainers
 
-Gabriele Nava (https://github.com/gabrielenava)
-
-
-
+Marie Charbonneau (https://github.com/pi-q)
 
 # torqueWalkingController
