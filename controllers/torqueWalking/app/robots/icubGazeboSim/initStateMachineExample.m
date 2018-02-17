@@ -1,5 +1,5 @@
-% INITSTATEMACHINEWALKING initializes the robot configuration for running
-%                         'MPC_WALKING' demo. 
+% INITSTATEMACHINEEXAMPLE initializes the robot configuration for running
+%                        'EXAMPLE_STATEMACHINE' demo. 
 %
 % USAGE: please note that this function is automatically executed when
 %        running the Simulink model.
@@ -24,17 +24,21 @@ Frames.LEFT_FOOT = 'l_sole';
 Frames.RIGHT_FOOT = 'r_sole';
 Frames.ROT_TASK_LINK = 'neck_2';
 
-% Emergency stop if ports are streaming null data (MPC_WALKING DEMO ONLY)
-Config.CHECK_PORTS_WALKING = true;
-Config.WALKING_WITH_MPC = true; 
+% Emergency stop if MPC ports are streaming null data (MPC_WALKING DEMO ONLY)
+Config.CHECK_PORTS_WALKING = false;
+Config.WALKING_WITH_MPC = false;
 
 % If true, joint references are modified in order not to be in conflict with
 % the Cartesian tasks. The new joint references are calculated by means of an
 % integration based inverse kinematics
-Config.USE_INVERSE_KINEMATICS = false;
+Config.USE_INVERSE_KINEMATICS = true;
+
+% If true, the QP problem will be defined with strict task priorities; if false,
+% with soft task priorities between tasks and posture
+Config.QP_USE_STRICT_TASK_PRIORITIES = false;
 
 % If true, the output of QP solver will be forced to be continuous
-Config.QP_USE_CONTINUITY_CONSTRAINTS = false;
+Config.QP_USE_CONTINUITY_CONSTRAINTS = true;
 Config.QP_IKIN_USE_CONTINUITY_CONSTRAINTS = true;
 
 % If true, the IMU orientation is used in order to estimate the
@@ -51,17 +55,17 @@ Config.FILTER_IMU_PITCH = false;
 
 % True if left foot is initially in contact with the ground (if false,
 % right foot is assumed to be in contact) (EXAMPLE_STATEMACHINE DEMO ONLY)
-Config.LFoot_in_contact_at0 = true;
+Config.LFoot_in_contact_at0 = true; %false;
 
 % If true, the robot will just balance on two feet (EXAMPLE_STATEMACHINE DEMO ONLY)
 Config.ONLY_BALANCING = false;
 
 % If Config.ONLY_BALANCING = false, this is the time the robot will balance
 % before it starts moving (EXAMPLE_STATEMACHINE DEMO ONLY)
-Config.t_balancing = 1;
+Config.t_balancing = 2;
 
 % If true, simulation is stopped when qpOASES outputs a "-2" error (QP is unfeasible)
-Config.CHECK_QP_ERROR = true; 
+Config.CHECK_QP_ERROR = true;
 
 %% Robot setup 
 
@@ -74,14 +78,17 @@ Sat.tauDot_max = 10000;
 % Saturation on state jerk (for QP based inverse kinematics)
 Sat.nuDDot_max = 10000;
 
+% Weight for the postural minimization task
+Sat.weightPostural = 0.1;
+
 % Weight for the joint minimization task
-Sat.weight_tau = 0.1;
+Sat.weight_tau = 0.1*Sat.weightPostural;
 
 % Numerical tolerance for assuming a foot on contact
 Sat.toll_feetInContact = 0.1;
 
 % Damping for the pseudoinverse used for computing the floating base velocity
-Sat.pinvDamp_nu_b = 1e-5;
+Sat.pinvDamp_nu_b = 1e-6;
 
 % If true, the feet accelerations are zero when the foot is in contact. If false, 
 % feet accelerations are equal to a feedforward + feedback terms
@@ -111,84 +118,97 @@ Config.K_ff     = 0;
 %% Smoothing of reference trajectories
 
 % If true, reference trajectories are smoothed internally
-Config.SMOOTH_COM_REF      = false;
-Config.SMOOTH_LFOOT_POS    = false;
-Config.SMOOTH_RFOOT_POS    = false;
-Config.SMOOTH_LFOOT_ORIENT = false; 
-Config.SMOOTH_RFOOT_ORIENT = false; 
-Config.SMOOTH_ROT_TASK_REF = false;
-Config.SMOOTH_JOINT_REF    = false; 
+Config.SMOOTH_COM_REF      = true;
+Config.SMOOTH_LFOOT_POS    = true;
+Config.SMOOTH_RFOOT_POS    = true;
+Config.SMOOTH_LFOOT_ORIENT = true; 
+Config.SMOOTH_RFOOT_ORIENT = true; 
+Config.SMOOTH_ROT_TASK_REF = true;
+Config.SMOOTH_JOINT_REF    = true; 
 
 % Smoothing time for tasks and joints references [s]
-Config.smoothingTime_CoM    = [2;2;2];
-Config.smoothingTime_LFoot  = [2;2;2];
-Config.smoothingTime_RFoot  = [2;2;2];
-Config.smoothingTime_joints = [2;2;2];
+Config.smoothingTime_CoM    = 2*[1;1;1;1;1];
+Config.smoothingTime_LFoot  = 2*[1;1;1;1;1];
+Config.smoothingTime_RFoot  = 2*[1;1;1;1;1];
+Config.smoothingTime_joints = 2*[1;1;1;1;1];
 
 % Gains that will influence the smoothing of reference orientations. The
 % higher, the faster. Only positive or null values.
-Config.LFoot_Kp_smoothing    = [1;1;1];
-Config.LFoot_Kd_smoothing    = [1;1;1];
-Config.RFoot_Kp_smoothing    = [1;1;1];
-Config.RFoot_Kd_smoothing    = [1;1;1];
-Config.rot_task_Kp_smoothing = [1;1;1];
-Config.rot_task_Kd_smoothing = [1;1;1];
+Config.LFoot_Kp_smoothing    = 2*[1;1;1;1;1];
+Config.LFoot_Kd_smoothing    = 2*[1;1;1;1;1];
+Config.RFoot_Kp_smoothing    = 2*[1;1;1;1;1];
+Config.RFoot_Kd_smoothing    = 2*[1;1;1;1;1];
+Config.rot_task_Kp_smoothing = 2*[1;1;1;1;1];
+Config.rot_task_Kd_smoothing = 2*[1;1;1;1;1];
 
 % Smoothing time for gain scheduling [s].
-Config.smoothingTimeGains    = [1;1;1];
+Config.smoothingTimeGains    = 2*[1;1;1;1;1];
 
-% Minimum value of the vertical force at contact location for the contact
-% to be considered as active (MPC_WALKING DEMO ONLY)
-Config.threshold_contact_activation = 2.5; % [N]
-
-%% CoM and feet references (EXAMPLE_STATEMACHINE DEMO ONLY)
+%% CoM and feet references
 
 % add a delta to the right foot position. 
 %
 % dimension: [m]
 % format: [x;y;z]
 %
-Config.deltaPos_RFoot = [ 0.00 0.00 0.00; ...   % state = 1 two feet balancing
-                          0.00 0.00 0.00; ...   % state = 2 left foot balancing
-                          0.00 0.00 0.00];      % state = 3 right foot balancing
-
+Config.deltaPos_RFoot = [ 0.000 0.00  0.000; ...   % state = 1 two feet balancing
+                          0.000 0.00  0.000; ...   % state = 2 move CoM on left foot
+                         -0.025 0.00  0.025; ...   % state = 3 left foot balancing
+                          0.000 0.00  0.000; ...   % state = 4 prepare for switching
+                          0.000 0.00  0.000];      % state = 5 two feet balancing
+                      
+Config.deltaPos_LFoot = [ 0.000 0.00  0.000; ...   % state = 1 two feet balancing
+                          0.000 0.00  0.000; ...   % state = 2 move CoM on right foot
+                         -0.025 0.00  0.025; ...   % state = 3 right foot balancing
+                          0.000 0.00  0.000; ...   % state = 4 prepare for switching
+                          0.000 0.00  0.000];      % state = 5 two feet balancing                      
+   
 %% Gains matrices
 
 % CoM position and velocity gains
 Gains.Kp_CoM = [50, 50, 50; ...  % state = 1 two feet balancing
-                50, 50, 50; ...  % state = 2 left foot balancing
-                50, 50, 50];     % state = 3 right foot balancing
+                50, 50, 50; ...  % state = 2 move CoM on left foot
+                50, 50, 50; ...  % state = 3 left foot balancing
+                50, 50, 50; ...  % state = 4 prepare for switching
+                50, 50, 50];     % state = 5 two feet balancing
                 
 Gains.Kd_CoM = 2*sqrt(Gains.Kp_CoM);
 
 % Feet position and velocity gains
 Gains.Kp_LFoot = [50, 50, 50, 30, 30, 30; ... % state = 1 two feet balancing
-                  50, 50, 50, 30, 30, 30; ... % state = 2 left foot balancing
-                  50, 50, 50, 30, 30, 30];    % state = 3 right foot balancing
+                  50, 50, 50, 30, 30, 30; ... % state = 2 move CoM on left foot
+                  50, 50, 50, 30, 30, 30; ... % state = 3 left foot balancing
+                  50, 50, 50, 30, 30, 30; ... % state = 4 prepare for switching
+                  50, 50, 50, 30, 30, 30];    % state = 5 two feet balancing
               
 Gains.Kd_LFoot = 2*sqrt(Gains.Kp_LFoot);
 
 Gains.Kp_RFoot = [50, 50, 50, 30, 30, 30; ... % state = 1 two feet balancing
-                  50, 50, 50, 30, 30, 30; ... % state = 2 left foot balancing
-                  50, 50, 50, 30, 30, 30];    % state = 3 right foot balancing
+                  50, 50, 50, 30, 30, 30; ... % state = 2 move CoM on left foot
+                  50, 50, 50, 30, 30, 30; ... % state = 3 left foot balancing
+                  50, 50, 50, 30, 30, 30; ... % state = 4 prepare for switching
+                  50, 50, 50, 30, 30, 30];    % state = 5 two feet balancing
 
 Gains.Kd_RFoot = 2*sqrt(Gains.Kp_RFoot); 
 
 % Root link orientation and angular velocity gains
 Gains.Kp_rot_task = [20, 20, 20; ...  % state = 1 two feet balancing
-                     20, 20, 20; ...  % state = 2 left foot balancing
-                     20, 20, 20];     % state = 3 right foot balancing
+                     20, 20, 20; ...  % state = 2 move CoM on left foot
+                     20, 20, 20; ...  % state = 3 left foot balancing
+                     20, 20, 20; ...  % state = 4 prepare for switching
+                     20, 20, 20];     % state = 5 two feet balancing
                  
 Gains.Kd_rot_task =  2*sqrt(Gains.Kp_rot_task); 
 
-% Joint position and velocity gains
-    
-                    % torso      % left arm      % right arm     % left leg               % right leg                                   
+% Joint position and velocity gains    
+                    % torso      % left arm       % right arm      % left leg               % right leg                                   
 Gains.impedances = [20  20  20,  10  10  10  8,  10  10  10  8,  30  30  30  60  10  10,  30  30  30  60  10  10;  ... % state = 1 two feet balancing          
                     20  20  20,  10  10  10  8,  10  10  10  8,  30  30  30  60  10  10,  30  30  30  60  10  10;  ... % state = 2 left foot balancing
-                    20  20  20,  10  10  10  8,  10  10  10  8,  30  30  30  60  10  10,  30  30  30  60  10  10]; ... % state = 3 right foot balancing
-                     
-Gains.dampings   = zeros(size(Gains.impedances));
+                    20  20  20,  10  10  10  8,  10  10  10  8,  30  30  30  60  10  10,  30  30  30  60  10  10;  ... % state = 3 left foot balancing
+                    20  20  20,  10  10  10  8,  10  10  10  8,  30  30  30  60  10  10,  30  30  30  60  10  10;  ... % state = 4 prepare for switching
+                    20  20  20,  10  10  10  8,  10  10  10  8,  30  30  30  60  10  10,  30  30  30  60  10  10]; ... % state = 5 two feet balancing
+                
+Gains.dampings   = 0 * sqrt(Gains.impedances); %zeros(size(Gains.impedances));
 
 % Joints position and velocity gains for inverse kinematics
 Gains.ikin_impedances = Gains.impedances(1,:);
@@ -206,5 +226,5 @@ fZmin                        = 10; % Min vertical force [N]
 
 % Size of the foot
 Config.footSize              = [-0.05  0.10;     % xMin, xMax
-                                -0.025 0.025];   % yMin, yMax  
-    
+                                -0.025 0.025];   % yMin, yMax 
+                            

@@ -132,7 +132,7 @@ function [state, references_CoM, references_LFoot, references_RFoot, references_
                  w_H_RFoot_0(1:3,1:3), zeros(3,2)];
          else %right foot balancing          
              % Move left foot backward and up
-             references_LFoot    = [(w_H_LFoot_0(1:3,4)+transpose(Config.deltaPos_RFoot(currentState,:))), zeros(3,4);
+             references_LFoot    = [(w_H_LFoot_0(1:3,4)+transpose(Config.deltaPos_LFoot(currentState,:))), zeros(3,4);
                  w_H_LFoot_0(1:3,1:3), zeros(3,2)];
          end
      

@@ -94,7 +94,7 @@ function [Hessian,gradient,ConstraintMatrix_equality,biasVectorConstraint_equali
           balancingControllerMPC(feetInContact, M, h, J, impedances, ...
                                  dampings, s, sDot, s_sDot_sDDot_des, acc_task_star, ...
                                  JDot_nu, ConstraintsMatrix_feet, biasVectorConstraint_feet, ...
-                                 w_H_l_sole, w_H_r_sole, Sat) 
+                                 w_H_l_sole, w_H_r_sole, Sat, Config) 
 
     % Dimension of the joint space
     ROBOT_DOF = size(s,1);
@@ -103,7 +103,7 @@ function [Hessian,gradient,ConstraintMatrix_equality,biasVectorConstraint_equali
     %
     %    J = [J_leftFoot; J_rightFoot; J_CoM; J_rot_task]
     %
-    J_c = [J(1:6,:)*feetInContact(1);
+    J_c = [J(1:6, :)*feetInContact(1);
            J(7:12,:)*feetInContact(2)];
     
     % Computing desired joint accelerations
@@ -114,8 +114,8 @@ function [Hessian,gradient,ConstraintMatrix_equality,biasVectorConstraint_equali
     % Multiplier of u in the joint accelerations equation and bias terms
     S         = [zeros(6,ROBOT_DOF);
                  eye(ROBOT_DOF)];             
-    B         = [transpose(J_c) S];
-    St        = transpose(S);
+    B         = [transpose(J_c) S]; 
+    St        = transpose(S);       
     invM      = eye(ROBOT_DOF+6)/M;
     St_invM_B = St*invM*B;
     St_invM_h = St*invM*h;
@@ -123,17 +123,26 @@ function [Hessian,gradient,ConstraintMatrix_equality,biasVectorConstraint_equali
     % Hessian matrix for minimizing also joint torques
     S_tau     = [zeros(ROBOT_DOF,12) eye(ROBOT_DOF)];
     
-    % Hessian matrix and gradient for QP solver
-    Hessian   =  transpose(St_invM_B)*St_invM_B + Sat.weight_tau*transpose(S_tau)*S_tau;
-    gradient  = -transpose(St_invM_B)*(St_invM_h +sDDot_star);
-
     % Multiplier of u in the equality constraint equation and bias terms
     J_invM_B  = J*invM*B;
     J_invM_h  = J*invM*h;
-    
+
+    % Hessian matrix and gradient for QP solver
+    if Config.QP_USE_STRICT_TASK_PRIORITIES
+        Hessian  = transpose(St_invM_B)*St_invM_B + Sat.weight_tau*transpose(S_tau)*S_tau;
+        gradient =-transpose(St_invM_B)*(St_invM_h + sDDot_star);
+    else %use soft constraints
+        Hessian  = transpose(J_invM_B)   * J_invM_B ...
+                   + Sat.weightPostural  * transpose(St_invM_B) * St_invM_B ...
+                   + Sat.weight_tau      * transpose(S_tau) * S_tau;
+                              
+        gradient = transpose(J_invM_B)   * (JDot_nu  - acc_task_star - J_invM_h) ...
+                   - Sat.weightPostural  * transpose(St_invM_B)*(St_invM_h + sDDot_star);
+    end                    
+                          
     % Equality constraints
     ConstraintMatrix_equality     = J_invM_B;
-    biasVectorConstraint_equality = acc_task_star -JDot_nu +J_invM_h;
+    biasVectorConstraint_equality = acc_task_star - JDot_nu + J_invM_h;
     
     % Inequality constraints
     %

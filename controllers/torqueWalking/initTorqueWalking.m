@@ -23,11 +23,10 @@ close all
 %     gazebo -slibgazebo_yarp_clock.so
 %
 % Set the YARP_ROBOT_NAME environmental variable
-
-% setenv('YARP_ROBOT_NAME','iCubGenova04');
 setenv('YARP_ROBOT_NAME','icubGazeboSim');
 % setenv('YARP_ROBOT_NAME','iCubGenova02');
-%   setenv('YARP_ROBOT_NAME','iCubGazeboV2_5');
+% setenv('YARP_ROBOT_NAME','iCubGenova04');
+
 
 % SELECT THE DEMO TO BE PERFORMED:
 %
